@@ -81,12 +81,19 @@ async def check_admin_password(message: Message, state: FSMContext):
     if message.text.strip() == ADMIN_PASSWORD:
         await message.answer(
             "👨‍💻 <b>Parol to'g'ri! Admin panelga xush kelibsiz!</b>\n\n"
-            "🆕 Yangi kino qo'shish uchun /addmovie buyrug'ini yuboring."
+            "🆕 Yangi kino qo'shish uchun /addmovie buyrug'ini yuboring.\n"
+            "📊 Bot statistikasini ko'rish uchun /stat buyrug'ini yuboring."
         )
         await state.clear()  # Parol to'g'ri bo'lsa holatdan chiqamiz
     else:
         await message.answer("❌ Noto'g'ri parol! Admin panelga kirish rad etildi.")
         await state.clear()  # Noto'g'ri bo'lsa ham holatni tozalaymiz
+
+# Statistika ko'rish qismi
+@router.message(F.text == "/stat")
+async def show_bot_stats(message: Message):
+    users_count = await db.get_users_count()
+    await message.answer(f"📊 <b>Bot statistikasi:</b>\n\n👥 Umumiy foydalanuvchilar soni: <b>{users_count}</b> ta")
 
 # 3. Kino qo'shishni boshlash
 @router.message(F.text == "/addmovie")
