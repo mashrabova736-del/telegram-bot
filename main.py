@@ -10,7 +10,8 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
 # MANA SHU YERDA HANDLERS ICHIDAGI ROUTER IMPORT QILINMOQDA
 from app.handlers import router
-from config import TOKEN
+import os
+TOKEN = os.environ.get("TOKEN")
 import app.db_setup as db
 
 # Botni standart HTML formatida ishlaydigan qilib yaratamiz
