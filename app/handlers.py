@@ -5,22 +5,24 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import Message
 import app.db_setup as db
 import sqlite3
-from app import keyboards as kb  # Agar kb ishlatayotgan bo'lsangiz
+from app import keyboards as kb  # Klaviatura tugmalari uchun
 
 router = Router()
 
-# Faqat ism so'rash uchun holat
+# Foydalanuvchi ro'yxatdan o'tish holati
 class Registration(StatesGroup):
     first_name = State()
 
-# Admin kino qo'shish holatlari
+# Admin FSM holatlari (Parol bosqichi qo'shildi)
 class AdminStates(StatesGroup):
+    waiting_for_password = State()  # Parol kutish holati
     waiting_for_code = State()
     waiting_for_name = State()
     waiting_for_genre = State()
     waiting_for_video = State()
 
-ADMIN_ID = 123456789  # ⚠️ O'zingizning Telegram ID-raqamingizni yozing
+# Doimiy admin paroli
+ADMIN_PASSWORD = "billioner"
 
 # ================= FOYDALANUVChI QISMI =================
 
@@ -42,7 +44,6 @@ async def first_name(message: Message, state: FSMContext):
     name = message.text.strip()
     tg_id = message.from_user.id
 
-    # Bazaga faqat ism va tg_id ni saqlaymiz, qolgan joylariga bo'sh matn beramiz
     await db.create_user(
         first_name=name,
         last_name="",
@@ -66,19 +67,30 @@ async def info(message: Message, state: FSMContext):
 async def search_info(message: Message):
     await message.answer("🍿 Kino kodini kiriting:")
 
-# ================= ADMIN PANEL QISMI =================
+# ================= ADMIN PANEL QISMI (PAROL BILAN) =================
 
+# 1. /admin yozilganda parol so'rash
 @router.message(F.text == "/admin")
-async def admin_panel(message: Message):
-    if message.from_user.id == ADMIN_ID:
-        await message.answer("👨‍💻 <b>Admin panelga xush kelibsiz!</b>\n\n🆕 Yangi kino qo'shish uchun /addmovie buyrug'ini yuboring.")
-    else:
-        await message.answer("❌ Siz admin emassiz!")
+async def admin_panel(message: Message, state: FSMContext):
+    await message.answer("🔒 Admin panelga kirish uchun maxfiy parolni kiriting:")
+    await state.set_state(AdminStates.waiting_for_password)
 
+# 2. Kiritilgan parolni tekshirish
+@router.message(AdminStates.waiting_for_password)
+async def check_admin_password(message: Message, state: FSMContext):
+    if message.text.strip() == ADMIN_PASSWORD:
+        await message.answer(
+            "👨‍💻 <b>Parol to'g'ri! Admin panelga xush kelibsiz!</b>\n\n"
+            "🆕 Yangi kino qo'shish uchun /addmovie buyrug'ini yuboring."
+        )
+        await state.clear()  # Parol to'g'ri bo'lsa holatdan chiqamiz
+    else:
+        await message.answer("❌ Noto'g'ri parol! Admin panelga kirish rad etildi.")
+        await state.clear()  # Noto'g'ri bo'lsa ham holatni tozalaymiz
+
+# 3. Kino qo'shishni boshlash
 @router.message(F.text == "/addmovie")
 async def add_movie_start(message: Message, state: FSMContext):
-    if message.from_user.id != ADMIN_ID:
-        return
     await message.answer("🔢 Kino uchun <b>KOD</b> kiriting (Faqat son bo'lishi shart):")
     await state.set_state(AdminStates.waiting_for_code)
 
@@ -87,7 +99,7 @@ async def process_code(message: Message, state: FSMContext):
     code = message.text.strip()
 
     if not code.isdigit():
-        await message.answer("⚠️ Xatolik! Kino kodi faqat <b>sonlardan</b> iborat bo'linger kerak. Qayta kiriting:")
+        await message.answer("⚠️ Xatolik! Kino kodi faqat <b>sonlardan</b> iborat bo'lishi kerak. Qayta kiriting:")
         return
 
     conn = sqlite3.connect('bot_database.db')
