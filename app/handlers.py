@@ -5,14 +5,13 @@ from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import Message
 import app.db_setup as db
 import sqlite3
+from app import keyboards as kb  # Agar kb ishlatayotgan bo'lsangiz
 
 router = Router()
 
-# Foydalanuvchi ro'yxatdan o'tish holatlari
+# Faqat ism so'rash uchun holat
 class Registration(StatesGroup):
     first_name = State()
-    last_name = State()
-    phone_number = State()
 
 # Admin kino qo'shish holatlari
 class AdminStates(StatesGroup):
@@ -21,7 +20,7 @@ class AdminStates(StatesGroup):
     waiting_for_genre = State()
     waiting_for_video = State()
 
-ADMIN_ID = 123456789  # ⚠️ Bu yerga o'zingizning Telegram ID-raqamingizni yozing
+ADMIN_ID = 123456789  # ⚠️ O'zingizning Telegram ID-raqamingizni yozing
 
 # ================= FOYDALANUVChI QISMI =================
 
@@ -30,7 +29,7 @@ async def cmd_start(message: Message, state: FSMContext):
     user = await db.check_user(message.from_user.id)
     if user:
         await message.answer(
-            f"👋 Assalomu alaykum, {html.bold(user[1])} {html.bold(user[2])}! Xush kelibsiz 🍿\n\n"
+            f"👋 Assalomu alaykum, {html.bold(user[1])}! Xush kelibsiz 🍿\n\n"
             f"🎬 Kino ko'rish uchun uning kodini yuboring.",
             reply_markup=kb.main_menu
         )
@@ -40,39 +39,24 @@ async def cmd_start(message: Message, state: FSMContext):
 
 @router.message(Registration.first_name)
 async def first_name(message: Message, state: FSMContext):
-    await state.update_data(first_name=message.text, tg_id=message.from_user.id)
-    await message.answer("👥 Familiyangizni kiriting:")
-    await state.set_state(Registration.last_name)
+    name = message.text.strip()
+    tg_id = message.from_user.id
 
-@router.message(Registration.last_name)
-async def last_name(message: Message, state: FSMContext):
-    await state.update_data(last_name=message.text)
-    await message.answer("📞 Telefon raqamingizni yuboring:", reply_markup=kb.phone_number)
-    await state.set_state(Registration.phone_number)
-
-@router.message(Registration.phone_number, F.contact)
-async def phone(message: Message, state: FSMContext):
-    await state.update_data(phone_number=message.contact.phone_number)
-    data = await state.get_data()
-
+    # Bazaga faqat ism va tg_id ni saqlaymiz, qolgan joylariga bo'sh matn beramiz
     await db.create_user(
-        first_name=data["first_name"],
-        last_name=data["last_name"],
-        tg_id=data["tg_id"],
-        phone_number=data["phone_number"]
+        first_name=name,
+        last_name="",
+        tg_id=tg_id,
+        phone_number=""
     )
     await state.clear()
     await message.answer("🎉 Muvaffaqiyatli ro'yxatdan o'tdingiz!", reply_markup=kb.main_menu)
-
-@router.message(Registration.phone_number)
-async def wrong_phone(message: Message):
-    await message.answer("⚠️ Iltimos, pastdagi 'Telefon raqamni yuborish' tugmasini bosing!", reply_markup=kb.phone_number)
 
 @router.message(F.text == "Mening ma'lumotlarim")
 async def info(message: Message, state: FSMContext):
     user = await db.check_user(message.from_user.id)
     if user:
-        text = f"👤 <b>Ism:</b> {user[1]}\n👥 <b>Familiya:</b> {user[2]}\n📞 <b>Tel:</b> +{user[4]}"
+        text = f"👤 <b>Ism:</b> {user[1]}\n🆔 <b>Telegram ID:</b> {user[3]}"
         await message.answer(text, reply_markup=kb.main_menu)
     else:
         await message.answer("❌ Siz ro'yxatdan o'tmagansiz")
@@ -103,7 +87,7 @@ async def process_code(message: Message, state: FSMContext):
     code = message.text.strip()
 
     if not code.isdigit():
-        await message.answer("⚠️ Xatolik! Kino kodi faqat <b>sonlardan</b> iborat bo'lishi kerak. Qayta kiriting:")
+        await message.answer("⚠️ Xatolik! Kino kodi faqat <b>sonlardan</b> iborat bo'linger kerak. Qayta kiriting:")
         return
 
     conn = sqlite3.connect('bot_database.db')
@@ -113,7 +97,7 @@ async def process_code(message: Message, state: FSMContext):
     conn.close()
 
     if exists:
-        await message.answer("⚠️ Bu kod band! Baza ichida bunday kodli kino bor. Boshqa son kiriting:")
+        await message.answer("⚠️ Bu kod band! Boshqa son kiriting:")
         return
 
     await state.update_data(movie_code=code)
