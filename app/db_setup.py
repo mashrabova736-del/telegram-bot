@@ -1,6 +1,5 @@
 import sqlite3
 
-
 async def db_start():
     conn = sqlite3.connect('bot_database.db')
     cursor = conn.cursor()
@@ -16,18 +15,18 @@ async def db_start():
         )
     """)
 
-    # Kinolar jadvali
+    # Kinolar jadvali (Janr ustuni bilan)
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS movies (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             movie_code TEXT UNIQUE,
             movie_name TEXT,
+            movie_genre TEXT,
             video_id TEXT
         )
     """)
     conn.commit()
     conn.close()
-
 
 # Foydalanuvchini tekshirish
 async def check_user(tg_id):
@@ -37,7 +36,6 @@ async def check_user(tg_id):
     user = cursor.fetchone()
     conn.close()
     return user
-
 
 # Yangi foydalanuvchi yaratish
 async def create_user(first_name, last_name, tg_id, phone_number):
@@ -50,12 +48,11 @@ async def create_user(first_name, last_name, tg_id, phone_number):
     conn.commit()
     conn.close()
 
-
 # Kinolarni kod bo'yicha olish
 async def get_movie(movie_code):
     conn = sqlite3.connect('bot_database.db')
     cursor = conn.cursor()
-    cursor.execute("SELECT movie_name, video_id FROM movies WHERE movie_code = ?", (movie_code,))
+    cursor.execute("SELECT movie_name, video_id, movie_genre FROM movies WHERE movie_code = ?", (movie_code,))
     movie = cursor.fetchone()
     conn.close()
-    return
+    return movie
