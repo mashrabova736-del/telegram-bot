@@ -56,3 +56,12 @@ async def get_movie(movie_code):
     movie = cursor.fetchone()
     conn.close()
     return movie
+
+# Botdagi umumiy foydalanuvchilar sonini hisoblash
+async def get_users_count():
+    conn = sqlite3.connect('bot_database.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM users")
+    count = cursor.fetchone()[0]
+    conn.close()
+    return count
